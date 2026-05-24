@@ -1,0 +1,21 @@
+# macOS
+.DS_Store
+
+# Android / Gradle
+.gradle/
+.kotlin/
+build/
+*/build/
+local.properties
+
+# Android Studio / IntelliJ
+.idea/
+*.iml
+
+# Secrets and generated service config
+google-services.json
+*.jks
+*.keystore
+
+# Logs
+*.log

@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="utf-8"?>
+<navigation xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/nav_graph"
+    app:startDestination="@id/loginFragment">
+
+    <fragment
+        android:id="@+id/loginFragment"
+        android:name="sv.edu.udb.eventoscomunitarios.ui.auth.LoginFragment"
+        android:label="@string/login_title">
+        <action
+            android:id="@+id/action_loginFragment_to_eventListFragment"
+            app:destination="@id/eventListFragment"
+            app:popUpTo="@id/loginFragment"
+            app:popUpToInclusive="true" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/eventListFragment"
+        android:name="sv.edu.udb.eventoscomunitarios.ui.event.EventListFragment"
+        android:label="@string/events_title">
+        <action
+            android:id="@+id/action_eventListFragment_to_eventDetailFragment"
+            app:destination="@id/eventDetailFragment" />
+        <action
+            android:id="@+id/action_eventListFragment_to_eventFormFragment"
+            app:destination="@id/eventFormFragment" />
+        <action
+            android:id="@+id/action_eventListFragment_to_historyFragment"
+            app:destination="@id/historyFragment" />
+        <action
+            android:id="@+id/action_eventListFragment_to_statsFragment"
+            app:destination="@id/statsFragment" />
+        <action
+            android:id="@+id/action_eventListFragment_to_loginFragment"
+            app:destination="@id/loginFragment"
+            app:popUpTo="@id/eventListFragment"
+            app:popUpToInclusive="true" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/eventDetailFragment"
+        android:name="sv.edu.udb.eventoscomunitarios.ui.event.EventDetailFragment"
+        android:label="@string/events_title">
+        <argument
+            android:name="eventId"
+            app:argType="string"
+            app:nullable="true" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/eventFormFragment"
+        android:name="sv.edu.udb.eventoscomunitarios.ui.event.EventFormFragment"
+        android:label="@string/event_form_title" />
+
+    <fragment
+        android:id="@+id/historyFragment"
+        android:name="sv.edu.udb.eventoscomunitarios.ui.history.HistoryFragment"
+        android:label="@string/history" />
+
+    <fragment
+        android:id="@+id/statsFragment"
+        android:name="sv.edu.udb.eventoscomunitarios.ui.stats.StatsFragment"
+        android:label="@string/stats" />
+</navigation>
