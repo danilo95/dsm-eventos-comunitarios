@@ -66,6 +66,21 @@
             android:layout_height="@dimen/button_height"
             android:layout_marginTop="@dimen/spacing_large"
             android:text="@string/confirm_attendance" />
+        <Button
+            android:id="@+id/editEventButton"
+            android:layout_width="match_parent"
+            android:layout_height="@dimen/button_height"
+            android:layout_marginTop="@dimen/spacing_medium"
+            android:text="@string/edit_event"
+            android:visibility="gone" />
+
+        <Button
+            android:id="@+id/deactivateEventButton"
+            android:layout_width="match_parent"
+            android:layout_height="@dimen/button_height"
+            android:layout_marginTop="@dimen/spacing_medium"
+            android:text="@string/deactivate_event"
+            android:visibility="gone" />
 
         <TextView
             android:id="@+id/statusText"

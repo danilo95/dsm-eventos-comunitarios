@@ -10,4 +10,10 @@ interface EventRepository {
     fun getStats(onResult: (Result<EventStats>) -> Unit)
     fun createEvent(event: CommunityEvent, onResult: (Result<Unit>) -> Unit)
     fun confirmAttendance(eventId: String, onResult: (Result<Unit>) -> Unit)
+
+    fun updateEvent(event: CommunityEvent, onResult: (Result<Unit>) -> Unit)
+
+    fun deactivateEvent(eventId: String, onResult: (Result<Unit>) -> Unit)
+
+    fun cancelAttendance(eventId: String, onResult: (Result<Unit>) -> Unit)
 }

@@ -50,4 +50,15 @@
     <string name="error_event_create_failed">No se pudo crear el evento.</string>
     <string name="error_comment_create_failed">No se pudo publicar el comentario.</string>
     <string name="error_rsvp_failed">No se pudo registrar la asistencia.</string>
+    <string name="edit_event">Editar evento</string>
+    <string name="deactivate_event">Desactivar evento</string>
+    <string name="event_updated">Evento actualizado.</string>
+    <string name="event_deactivated">Evento desactivado.</string>
+    <string name="error_event_update_failed">No se pudo actualizar el evento.</string>
+    <string name="error_event_deactivate_failed">No se pudo desactivar el evento.</string>
+    <string name="edit_event_title">Editar evento</string>
+    <string name="edit_event_subtitle">Actualiza los datos principales de la actividad comunitaria.</string>
+    <string name="cancel_attendance">Cancelar asistencia</string>
+    <string name="rsvp_cancelled_message">Asistencia cancelada</string>
+    <string name="error_rsvp_cancel_failed">No se pudo cancelar la asistencia.</string>
 </resources>

@@ -19,6 +19,11 @@ import sv.edu.udb.eventoscomunitarios.domain.model.CommunityEvent
 
 class EventFormFragment : Fragment() {
     private var binding: FragmentEventFormBinding? = null
+    private var eventIdToEdit: String = ""
+    private var eventBeingEdited: CommunityEvent? = null
+
+    private val isEditMode: Boolean
+        get() = eventIdToEdit.isNotBlank()
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -30,24 +35,79 @@ class EventFormFragment : Fragment() {
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        eventIdToEdit = arguments?.getString("eventId").orEmpty()
+
+        if (isEditMode) {
+            loadEventForEdit(eventIdToEdit)
+        }
+
         binding?.dateInput?.setOnClickListener {
             showDatePicker()
         }
+
         binding?.timeInput?.setOnClickListener {
             showTimePicker()
         }
+
         binding?.saveButton?.setOnClickListener {
             if (validateEventForm()) {
-                saveEvent()
+                if (isEditMode) {
+                    updateEvent()
+                } else {
+                    createEvent()
+                }
             }
         }
     }
 
-    private fun saveEvent() {
+    private fun loadEventForEdit(eventId: String) {
         val currentBinding = binding ?: return
+        currentBinding.saveButton.isEnabled = false
+
+        FirebaseEventRepository.getEventById(eventId) { result ->
+            val activeBinding = binding ?: return@getEventById
+            activeBinding.saveButton.isEnabled = true
+
+            result
+                .onSuccess { event ->
+                    if (event == null) {
+                        Toast.makeText(
+                            requireContext(),
+                            R.string.error_events_load_failed,
+                            Toast.LENGTH_LONG
+                        ).show()
+                        findNavController().popBackStack()
+                        return@onSuccess
+                    }
+
+                    eventBeingEdited = event
+
+                    activeBinding.titleInput.setText(event.title)
+                    activeBinding.descriptionInput.setText(event.description)
+                    activeBinding.dateInput.setText(event.date)
+                    activeBinding.timeInput.setText(event.time)
+                    activeBinding.locationInput.setText(event.location)
+                    activeBinding.capacityInput.setText(event.capacity.toString())
+                    activeBinding.saveButton.text = getString(R.string.save)
+                }
+                .onFailure {
+                    Toast.makeText(
+                        requireContext(),
+                        R.string.error_events_load_failed,
+                        Toast.LENGTH_LONG
+                    ).show()
+                    findNavController().popBackStack()
+                }
+        }
+    }
+
+    private fun createEvent() {
+        val currentBinding = binding ?: return
+
         val organizerName = FirebaseAuthRepository.getCurrentUserEmail().ifBlank {
             getString(R.string.default_organizer)
         }
+
         val event = CommunityEvent(
             id = "",
             title = currentBinding.titleInput.text?.toString()?.trim().orEmpty(),
@@ -56,28 +116,77 @@ class EventFormFragment : Fragment() {
             time = currentBinding.timeInput.text?.toString()?.trim().orEmpty(),
             location = currentBinding.locationInput.text?.toString()?.trim().orEmpty(),
             organizerName = organizerName,
+            organizerId = FirebaseAuthRepository.getCurrentUserId().orEmpty(),
             capacity = currentBinding.capacityInput.text?.toString()?.trim()?.toIntOrNull() ?: 0,
             confirmedCount = 0
         )
 
         currentBinding.saveButton.isEnabled = false
+
         FirebaseEventRepository.createEvent(event) { result ->
             val activeBinding = binding ?: return@createEvent
             activeBinding.saveButton.isEnabled = true
 
             result
                 .onSuccess {
-                    Toast.makeText(requireContext(), R.string.event_created, Toast.LENGTH_SHORT).show()
+                    Toast.makeText(
+                        requireContext(),
+                        R.string.event_created,
+                        Toast.LENGTH_SHORT
+                    ).show()
                     findNavController().popBackStack()
                 }
                 .onFailure {
-                    Toast.makeText(requireContext(), R.string.error_event_create_failed, Toast.LENGTH_LONG).show()
+                    Toast.makeText(
+                        requireContext(),
+                        R.string.error_event_create_failed,
+                        Toast.LENGTH_LONG
+                    ).show()
+                }
+        }
+    }
+
+    private fun updateEvent() {
+        val currentBinding = binding ?: return
+        val originalEvent = eventBeingEdited ?: return
+
+        val updatedEvent = originalEvent.copy(
+            title = currentBinding.titleInput.text?.toString()?.trim().orEmpty(),
+            description = currentBinding.descriptionInput.text?.toString()?.trim().orEmpty(),
+            date = currentBinding.dateInput.text?.toString()?.trim().orEmpty(),
+            time = currentBinding.timeInput.text?.toString()?.trim().orEmpty(),
+            location = currentBinding.locationInput.text?.toString()?.trim().orEmpty(),
+            capacity = currentBinding.capacityInput.text?.toString()?.trim()?.toIntOrNull() ?: 0
+        )
+
+        currentBinding.saveButton.isEnabled = false
+
+        FirebaseEventRepository.updateEvent(updatedEvent) { result ->
+            val activeBinding = binding ?: return@updateEvent
+            activeBinding.saveButton.isEnabled = true
+
+            result
+                .onSuccess {
+                    Toast.makeText(
+                        requireContext(),
+                        R.string.event_updated,
+                        Toast.LENGTH_SHORT
+                    ).show()
+                    findNavController().popBackStack()
+                }
+                .onFailure {
+                    Toast.makeText(
+                        requireContext(),
+                        R.string.error_event_update_failed,
+                        Toast.LENGTH_LONG
+                    ).show()
                 }
         }
     }
 
     private fun showDatePicker() {
         val calendar = Calendar.getInstance()
+
         DatePickerDialog(
             requireContext(),
             { _, year, month, dayOfMonth ->
@@ -94,10 +203,13 @@ class EventFormFragment : Fragment() {
 
     private fun showTimePicker() {
         val calendar = Calendar.getInstance()
+
         TimePickerDialog(
             requireContext(),
             { _, hourOfDay, minute ->
-                binding?.timeInput?.setText(String.format(Locale.US, "%02d:%02d", hourOfDay, minute))
+                binding?.timeInput?.setText(
+                    String.format(Locale.US, "%02d:%02d", hourOfDay, minute)
+                )
                 binding?.timeInputLayout?.error = null
             },
             calendar.get(Calendar.HOUR_OF_DAY),
@@ -108,6 +220,7 @@ class EventFormFragment : Fragment() {
 
     private fun validateEventForm(): Boolean {
         val currentBinding = binding ?: return false
+
         val title = currentBinding.titleInput.text?.toString()?.trim().orEmpty()
         val description = currentBinding.descriptionInput.text?.toString()?.trim().orEmpty()
         val date = currentBinding.dateInput.text?.toString()?.trim().orEmpty()
@@ -145,6 +258,7 @@ class EventFormFragment : Fragment() {
         }
 
         val capacityValue = capacity.toIntOrNull()
+
         currentBinding.capacityInputLayout.error = when {
             capacity.isBlank() -> getString(R.string.error_required)
             capacityValue == null || capacityValue <= 0 -> getString(R.string.error_capacity_invalid)

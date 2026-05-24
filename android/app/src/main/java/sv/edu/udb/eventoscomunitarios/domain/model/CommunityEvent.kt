@@ -8,6 +8,7 @@ data class CommunityEvent(
     val time: String,
     val location: String,
     val organizerName: String,
+    val organizerId: String = "",
     val capacity: Int,
     val confirmedCount: Int,
     val status: EventStatus = EventStatus.UPCOMING,
