@@ -19,7 +19,13 @@ object FirebaseEventRepository : EventRepository {
             .whereEqualTo("status", EventStatus.UPCOMING.name)
             .get()
             .addOnSuccessListener { snapshot ->
-                onResult(Result.success(snapshot.documents.mapNotNull { it.toCommunityEvent() }.sortedBy { it.date }))
+                onResult(
+                    Result.success(
+                        snapshot.documents
+                            .mapNotNull { it.toCommunityEvent() }
+                            .sortedBy { it.date }
+                    )
+                )
             }
             .addOnFailureListener { onResult(Result.failure(it)) }
     }
@@ -29,7 +35,13 @@ object FirebaseEventRepository : EventRepository {
             .whereEqualTo("status", EventStatus.PAST.name)
             .get()
             .addOnSuccessListener { snapshot ->
-                onResult(Result.success(snapshot.documents.mapNotNull { it.toCommunityEvent() }.sortedByDescending { it.date }))
+                onResult(
+                    Result.success(
+                        snapshot.documents
+                            .mapNotNull { it.toCommunityEvent() }
+                            .sortedByDescending { it.date }
+                    )
+                )
             }
             .addOnFailureListener { onResult(Result.failure(it)) }
     }
@@ -37,7 +49,9 @@ object FirebaseEventRepository : EventRepository {
     override fun getEventById(eventId: String, onResult: (Result<CommunityEvent?>) -> Unit) {
         eventsCollection.document(eventId)
             .get()
-            .addOnSuccessListener { snapshot -> onResult(Result.success(snapshot.toCommunityEvent())) }
+            .addOnSuccessListener { snapshot ->
+                onResult(Result.success(snapshot.toCommunityEvent()))
+            }
             .addOnFailureListener { onResult(Result.failure(it)) }
     }
 
@@ -45,6 +59,7 @@ object FirebaseEventRepository : EventRepository {
         eventsCollection.get()
             .addOnSuccessListener { snapshot ->
                 val events = snapshot.documents.mapNotNull { it.toCommunityEvent() }
+
                 onResult(
                     Result.success(
                         EventStats(
@@ -60,23 +75,95 @@ object FirebaseEventRepository : EventRepository {
     }
 
     override fun createEvent(event: CommunityEvent, onResult: (Result<Unit>) -> Unit) {
-        val document = if (event.id.isBlank()) eventsCollection.document() else eventsCollection.document(event.id)
-        document.set(event.copy(id = document.id).toMap())
+        val document = eventsCollection.document()
+        val currentUserId = FirebaseAuthRepository.getCurrentUserId().orEmpty()
+
+        if (currentUserId.isBlank()) {
+            onResult(Result.failure(IllegalStateException("Debe iniciar sesión.")))
+            return
+        }
+
+        val eventToCreate = event.copy(
+            id = document.id,
+            organizerId = currentUserId,
+            confirmedCount = 0,
+            confirmedUserIds = emptyList(),
+            status = EventStatus.UPCOMING
+        )
+
+        document.set(eventToCreate.toCreateMap())
+            .addOnSuccessListener { onResult(Result.success(Unit)) }
+            .addOnFailureListener { onResult(Result.failure(it)) }
+    }
+
+    override fun updateEvent(event: CommunityEvent, onResult: (Result<Unit>) -> Unit) {
+        val currentUserId = FirebaseAuthRepository.getCurrentUserId().orEmpty()
+
+        if (currentUserId.isBlank()) {
+            onResult(Result.failure(IllegalStateException("Debe iniciar sesión.")))
+            return
+        }
+
+        val eventDocument = eventsCollection.document(event.id)
+
+        firestore.runTransaction { transaction ->
+            val snapshot = transaction.get(eventDocument)
+            val organizerId = snapshot.getString("organizerId").orEmpty()
+
+            if (organizerId != currentUserId) {
+                throw EventOwnerRequiredException()
+            }
+
+            transaction.update(eventDocument, event.toUpdateMap())
+        }
+            .addOnSuccessListener { onResult(Result.success(Unit)) }
+            .addOnFailureListener { onResult(Result.failure(it)) }
+    }
+
+    override fun deactivateEvent(eventId: String, onResult: (Result<Unit>) -> Unit) {
+        val currentUserId = FirebaseAuthRepository.getCurrentUserId().orEmpty()
+
+        if (currentUserId.isBlank()) {
+            onResult(Result.failure(IllegalStateException("Debe iniciar sesión.")))
+            return
+        }
+
+        val eventDocument = eventsCollection.document(eventId)
+
+        firestore.runTransaction { transaction ->
+            val snapshot = transaction.get(eventDocument)
+            val organizerId = snapshot.getString("organizerId").orEmpty()
+
+            if (organizerId != currentUserId) {
+                throw EventOwnerRequiredException()
+            }
+
+            transaction.update(
+                eventDocument,
+                mapOf(
+                    "status" to EventStatus.CANCELLED.name,
+                    "updatedAt" to FieldValue.serverTimestamp()
+                )
+            )
+        }
             .addOnSuccessListener { onResult(Result.success(Unit)) }
             .addOnFailureListener { onResult(Result.failure(it)) }
     }
 
     override fun confirmAttendance(eventId: String, onResult: (Result<Unit>) -> Unit) {
         val userId = FirebaseAuthRepository.getCurrentUserId().orEmpty()
+
         if (userId.isBlank()) {
             onResult(Result.failure(IllegalStateException("Debe iniciar sesión.")))
             return
         }
 
         val eventDocument = eventsCollection.document(eventId)
+
         firestore.runTransaction { transaction ->
             val snapshot = transaction.get(eventDocument)
             val confirmedUserIds = snapshot.get("confirmedUserIds") as? List<*> ?: emptyList<Any>()
+
             if (confirmedUserIds.contains(userId)) {
                 throw AttendanceAlreadyConfirmedException()
             }
@@ -93,12 +180,50 @@ object FirebaseEventRepository : EventRepository {
             .addOnFailureListener { onResult(Result.failure(it)) }
     }
 
+    override fun cancelAttendance(eventId: String, onResult: (Result<Unit>) -> Unit) {
+        val userId = FirebaseAuthRepository.getCurrentUserId().orEmpty()
+
+        if (userId.isBlank()) {
+            onResult(Result.failure(IllegalStateException("Debe iniciar sesión.")))
+            return
+        }
+
+        val eventDocument = eventsCollection.document(eventId)
+
+        firestore.runTransaction { transaction ->
+            val snapshot = transaction.get(eventDocument)
+            val confirmedUserIds = snapshot.get("confirmedUserIds") as? List<*> ?: emptyList<Any>()
+
+            if (!confirmedUserIds.contains(userId)) {
+                throw AttendanceNotConfirmedException()
+            }
+
+            val currentConfirmedCount = snapshot.getLong("confirmedCount") ?: 0L
+            val newConfirmedCount = if (currentConfirmedCount > 0L) {
+                currentConfirmedCount - 1L
+            } else {
+                0L
+            }
+
+            transaction.update(
+                eventDocument,
+                mapOf(
+                    "confirmedCount" to newConfirmedCount,
+                    "confirmedUserIds" to FieldValue.arrayRemove(userId)
+                )
+            )
+        }
+            .addOnSuccessListener { onResult(Result.success(Unit)) }
+            .addOnFailureListener { onResult(Result.failure(it)) }
+    }
+
     fun getComments(eventId: String, onResult: (Result<List<EventComment>>) -> Unit) {
         eventsCollection.document(eventId)
             .get()
             .addOnSuccessListener { snapshot ->
                 val comments = snapshot.toEventComments(eventId)
                     .sortedByDescending { it.createdAtMillis }
+
                 onResult(Result.success(comments))
             }
             .addOnFailureListener { onResult(Result.failure(it)) }
@@ -107,8 +232,10 @@ object FirebaseEventRepository : EventRepository {
     fun addComment(eventId: String, commentText: String, onResult: (Result<Unit>) -> Unit) {
         val userEmail = FirebaseAuthRepository.getCurrentUserEmail()
         val userName = userEmail.substringBefore("@").ifBlank { "Usuario" }
+
         val document = eventsCollection.document(eventId)
         val commentId = document.collection("comments").document().id
+
         val comment = mapOf(
             "id" to commentId,
             "eventId" to eventId,
@@ -123,7 +250,7 @@ object FirebaseEventRepository : EventRepository {
             .addOnFailureListener { onResult(Result.failure(it)) }
     }
 
-    private fun CommunityEvent.toMap(): Map<String, Any> {
+    private fun CommunityEvent.toCreateMap(): Map<String, Any> {
         return mapOf(
             "id" to id,
             "title" to title,
@@ -132,14 +259,26 @@ object FirebaseEventRepository : EventRepository {
             "time" to time,
             "location" to location,
             "organizerName" to organizerName,
+            "organizerId" to organizerId,
+            "organizerEmail" to FirebaseAuthRepository.getCurrentUserEmail(),
             "capacity" to capacity,
             "confirmedCount" to confirmedCount,
             "status" to status.name,
-            "organizerId" to FirebaseAuthRepository.getCurrentUserId().orEmpty(),
-            "organizerEmail" to FirebaseAuthRepository.getCurrentUserEmail(),
-            "confirmedUserIds" to emptyList<String>(),
+            "confirmedUserIds" to confirmedUserIds,
             "comments" to emptyList<Map<String, Any>>(),
             "createdAt" to FieldValue.serverTimestamp()
+        )
+    }
+
+    private fun CommunityEvent.toUpdateMap(): Map<String, Any> {
+        return mapOf(
+            "title" to title,
+            "description" to description,
+            "date" to date,
+            "time" to time,
+            "location" to location,
+            "capacity" to capacity,
+            "updatedAt" to FieldValue.serverTimestamp()
         )
     }
 
@@ -154,12 +293,15 @@ object FirebaseEventRepository : EventRepository {
             time = getString("time").orEmpty(),
             location = getString("location").orEmpty(),
             organizerName = getString("organizerName").orEmpty(),
+            organizerId = getString("organizerId").orEmpty(),
             capacity = getLong("capacity")?.toInt() ?: 0,
             confirmedCount = getLong("confirmedCount")?.toInt() ?: 0,
             status = runCatching {
                 EventStatus.valueOf(getString("status") ?: EventStatus.UPCOMING.name)
             }.getOrDefault(EventStatus.UPCOMING),
-            confirmedUserIds = (get("confirmedUserIds") as? List<*>)?.filterIsInstance<String>().orEmpty()
+            confirmedUserIds = (get("confirmedUserIds") as? List<*>)
+                ?.filterIsInstance<String>()
+                .orEmpty()
         )
     }
 
@@ -178,8 +320,10 @@ object FirebaseEventRepository : EventRepository {
 
     private fun DocumentSnapshot.toEventComments(eventId: String): List<EventComment> {
         val commentMaps = get("comments") as? List<*> ?: return emptyList()
+
         return commentMaps.mapNotNull { value ->
             val comment = value as? Map<*, *> ?: return@mapNotNull null
+
             EventComment(
                 id = comment["id"] as? String ?: "",
                 eventId = comment["eventId"] as? String ?: eventId,
@@ -192,4 +336,14 @@ object FirebaseEventRepository : EventRepository {
     }
 }
 
-class AttendanceAlreadyConfirmedException : IllegalStateException("La asistencia ya fue confirmada.")
+class AttendanceAlreadyConfirmedException : IllegalStateException(
+    "La asistencia ya fue confirmada."
+)
+
+class EventOwnerRequiredException : IllegalStateException(
+    "Solo el dueño del evento puede realizar esta acción."
+)
+
+class AttendanceNotConfirmedException : IllegalStateException(
+    "La asistencia no estaba confirmada."
+)

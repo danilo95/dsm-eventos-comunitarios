@@ -42,16 +42,27 @@
         android:id="@+id/eventDetailFragment"
         android:name="sv.edu.udb.eventoscomunitarios.ui.event.EventDetailFragment"
         android:label="@string/events_title">
+
         <argument
             android:name="eventId"
             app:argType="string"
             app:nullable="true" />
+
+        <action
+            android:id="@+id/action_eventDetailFragment_to_eventFormFragment"
+            app:destination="@id/eventFormFragment" />
     </fragment>
 
     <fragment
         android:id="@+id/eventFormFragment"
         android:name="sv.edu.udb.eventoscomunitarios.ui.event.EventFormFragment"
-        android:label="@string/event_form_title" />
+        android:label="@string/event_form_title">
+
+        <argument
+            android:name="eventId"
+            app:argType="string"
+            android:defaultValue="" />
+    </fragment>
 
     <fragment
         android:id="@+id/historyFragment"
