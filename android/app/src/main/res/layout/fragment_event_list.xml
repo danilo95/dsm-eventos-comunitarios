@@ -66,12 +66,34 @@
             android:textAllCaps="false" />
     </LinearLayout>
 
+        <TextView
+            android:id="@+id/eventsCounterText"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/spacing_large"
+            android:text="@string/events_counter_initial"
+            android:textColor="@color/text_secondary"
+            android:textSize="@dimen/body_text"
+            android:textStyle="bold" />
+
+        <TextView
+         android:id="@+id/emptyEventsText"
+         android:layout_width="match_parent"
+         android:layout_height="0dp"
+         android:layout_marginTop="@dimen/spacing_large"
+         android:layout_weight="1"
+         android:gravity="center"
+         android:text="@string/empty_events"
+         android:textColor="@color/text_secondary"
+         android:textSize="@dimen/body_text"
+         android:visibility="gone" />
+
     <androidx.recyclerview.widget.RecyclerView
-        android:id="@+id/eventsRecyclerView"
-        android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_marginTop="@dimen/spacing_large"
-        android:layout_weight="1"
-        android:clipToPadding="false"
-        android:paddingBottom="@dimen/spacing_small" />
+     android:id="@+id/eventsRecyclerView"
+     android:layout_width="match_parent"
+     android:layout_height="0dp"
+     android:layout_marginTop="@dimen/spacing_medium"
+     android:layout_weight="1"
+     android:clipToPadding="false"
+     android:paddingBottom="@dimen/spacing_small" />
 </LinearLayout>

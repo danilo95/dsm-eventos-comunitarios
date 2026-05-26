@@ -3,6 +3,7 @@ package sv.edu.udb.eventoscomunitarios.ui.event
 import android.view.LayoutInflater
 import android.view.ViewGroup
 import androidx.recyclerview.widget.RecyclerView
+import sv.edu.udb.eventoscomunitarios.R
 import sv.edu.udb.eventoscomunitarios.databinding.ItemEventBinding
 import sv.edu.udb.eventoscomunitarios.domain.model.CommunityEvent
 
@@ -25,12 +26,30 @@ class EventAdapter(
     inner class EventViewHolder(
         private val binding: ItemEventBinding
     ) : RecyclerView.ViewHolder(binding.root) {
+
         fun bind(event: CommunityEvent) {
+            val context = binding.root.context
+            val availableSeats = (event.capacity - event.confirmedCount).coerceAtLeast(0)
+
             binding.titleText.text = event.title
             binding.dateText.text = "${event.date} - ${event.time}"
             binding.locationText.text = event.location
-            binding.participantsText.text = "${event.confirmedCount}/${event.capacity} confirmados"
-            binding.root.setOnClickListener { onEventClick(event) }
+
+            binding.participantsText.text = context.getString(
+                R.string.event_confirmed_count,
+                event.confirmedCount,
+                event.capacity
+            )
+
+            binding.availabilityText.text = when {
+                availableSeats == 0 -> context.getString(R.string.event_full)
+                availableSeats == 1 -> context.getString(R.string.event_one_seat_available)
+                else -> context.getString(R.string.event_seats_available, availableSeats)
+            }
+
+            binding.root.setOnClickListener {
+                onEventClick(event)
+            }
         }
     }
 }
