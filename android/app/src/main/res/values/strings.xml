@@ -61,4 +61,11 @@
     <string name="cancel_attendance">Cancelar asistencia</string>
     <string name="rsvp_cancelled_message">Asistencia cancelada</string>
     <string name="error_rsvp_cancel_failed">No se pudo cancelar la asistencia.</string>
+    <string name="events_counter_initial">Cargando eventos...</string>
+    <string name="events_counter">%1$d eventos disponibles</string>
+    <string name="empty_events">Aún no hay eventos próximos disponibles.</string>
+    <string name="event_confirmed_count">%1$d/%2$d confirmados</string>
+    <string name="event_full">Evento lleno</string>
+    <string name="event_one_seat_available">1 cupo disponible</string>
+    <string name="event_seats_available">%1$d cupos disponibles</string>
 </resources>
